@@ -1,0 +1,55 @@
+#!/bin/env python
+import asyncio,subprocess,os,sys,json,configparser
+import aiosqlite
+
+async def send_message(senders,message):
+    for sender in senders:
+        sender.stdin.write((message.lstrip()+'\n').encode('utf-8'))
+    await asyncio.gather(*[sender.stdin.drain() for sender in senders])
+async def getline(process):
+    return (process,(await process.stdout.readline()).decode('utf-8').rstrip())
+async def loop(senders,receivers):
+    coro = {asyncio.create_task(getline(process)) for process in receivers}
+    sender_tasks = set()
+    while coro:
+        
+        finished,pending = await asyncio.wait(coro,return_when=asyncio.FIRST_COMPLETED)
+        coro = pending
+        for f in finished:
+            proc,line = await f
+            #print("Got line",line)
+            if line:
+                #print("Should probably send it!")
+                sender_tasks.add(asyncio.create_task(send_message(senders, line)))
+            if proc.returncode is None:
+                coro.add(asyncio.create_task(getline(proc)))
+            else:
+                print(f"Receiver {proc.pid} finished with return code {proc.returncode}")
+    await asyncio.gather(*sender_tasks)
+
+
+def mkenv(name,config):
+
+    env = os.environ.copy()
+    if 'DEFAULT' in config.sections():
+        env.update(config['DEFAULT'])
+    if name in config.sections():
+        env.update(config[name])
+    return env
+async def main():
+    config = configparser.ConfigParser()
+    config.read('botconfig.ini')
+
+    receivers = await asyncio.gather(*[
+        asyncio.create_subprocess_exec('recv/'+receiver,stdout=subprocess.PIPE,env=mkenv(receiver, config)) 
+        for receiver in os.listdir('recv/')
+        ])
+    senders = await  asyncio.gather(*[
+        asyncio.create_subprocess_exec('send/'+sender,stdin=subprocess.PIPE,env=mkenv(sender, config)) 
+        for sender in os.listdir('send/')
+        ])
+    await loop(senders, receivers)
+
+    
+if __name__ == '__main__':
+    asyncio.run(main())

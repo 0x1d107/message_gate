@@ -1,0 +1,6 @@
+#!/bin/sh
+for i in $(seq 10)
+do
+    echo '{"text":"test 2 message!", "from":"0x1d107"}'
+    sleep 2
+done

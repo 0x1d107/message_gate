@@ -1,0 +1,10 @@
+#!/bin/bash
+while read MESSAGE
+do
+    if [[ $verbose = "true" ]]
+    then
+        echo [$0] Got message: $MESSAGE
+        echo [$0] Appending to log
+    fi
+    echo "$MESSAGE" >> log.txt
+done
