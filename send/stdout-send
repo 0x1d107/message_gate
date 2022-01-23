@@ -1,10 +1,17 @@
 #!/bin/bash
-while read MESSAGE
+while read MSG
 do
-    if [[ $verbose = "true" ]]
-    then
-        echo [$0] Got message: $MESSAGE
-        echo [$0] Appending to log
+    [[ $verbose = "true" ]] && echo [$0] Got path: $MSG
+    if [[ $pretty = "true" ]]; then
+        jq -j '.from' "$MSG"
+        printf '> '
+        jq -r '.text' "$MSG"
+    else 
+        cat $MSG
     fi
-    echo "$MESSAGE" >> log.txt
+    [[ $verbose = "true" ]] &&echo [$0] Sending slowly...
+    sleep 0.5
+    [[ $verbose = "true" ]] &&echo [$0] Appending to log
+    cat $MSG >> log.txt
+    rm $MSG
 done
