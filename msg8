@@ -18,7 +18,16 @@ class FileQueue:
         message_ids = [int(match[1]) for match in map(self.file_name_pattern.fullmatch,[file for d in os.listdir(root) for file in os.listdir(f"{root}/{d}")]) if match is not None]
         if len(message_ids)>0:
             self.idx = max(message_ids) + 1
+    async def filter_msg(self,msg):
+        if not self.filter:
+            return msg
+        self.filter.stdin.write((msg+'\n').encode('utf-8'))
+        await self.filter.stdin.drain()
+        return (await self.filter.stdout.readline()).decode('utf-8')
     async def push_message(self,msg):
+        msg = await self.filter_msg(msg)
+        if not msg:
+            return
         filepath = self.root+'/history/'+self.file_name % (self.idx)
         with open(filepath,'w') as f:
             f.write((msg+'\n'))
@@ -87,7 +96,9 @@ async def main():
         ])
     senders_dict = dict(zip(sender_names,senders))
     controller = None
-    dirq = FileQueue('messages', senders_dict,save_history=False)
+    if os.access('filter/controller', os.F_OK|os.X_OK):
+        controller = await asyncio.create_subprocess_exec('filter/controller',stdin=subprocess.PIPE,stdout=subprocess.PIPE)
+    dirq = FileQueue('messages', senders_dict,save_history=False,filter_proc=controller)
     await dirq.remind()
     await loop(dirq, receivers)
 

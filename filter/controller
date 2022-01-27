@@ -1,1 +1,7 @@
 #!/bin/env python
+import re,json
+regex = re.compile(r"hello|hi",re.I)
+while True:
+    mobj = json.loads(input())
+    mobj['text'] = regex.sub('goodbye', mobj["text"])
+    print(json.dumps(mobj))
