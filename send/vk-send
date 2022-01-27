@@ -1,0 +1,14 @@
+#!/bin/env python
+import vk_api,os,json,random,time
+api = vk_api.VkApi(token=os.environ['apikey']).get_api()
+chat=int(os.environ["chat"])
+while True:
+    message_path = input()
+    mobj = json.load(open(message_path))
+    if 'protocol' in mobj and mobj['protocol'] == "vk":
+        os.unlink(message_path)
+        continue
+    message = f"{mobj['from']}> {mobj['text']}"
+    api.messages.send(peer_id=chat,message=message,random_id=random.randrange(2**32-1))
+    time.sleep(1)
+    os.unlink(message_path)

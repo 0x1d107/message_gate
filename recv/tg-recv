@@ -1,0 +1,15 @@
+#!/bin/env python
+import aiogram,os,json,logging
+bot = aiogram.Bot(os.environ['apikey'])
+dp = aiogram.Dispatcher(bot)
+@dp.message_handler()
+async def echo(message):
+    user = message.from_user
+    name = user.first_name + " " + user.last_name+"@telegram"
+    if 'chat' in os.environ and str(message.chat.id) != os.environ['chat']:
+        return
+    #await bot.send_message(message.chat.id, "OK")
+    print(json.dumps({"text":message.text,"from":name,"protocol":"telegram"}),flush=True)
+
+if __name__ == '__main__':
+    aiogram.executor.start_polling(dp,skip_updates=True)

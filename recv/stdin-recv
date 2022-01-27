@@ -1,5 +1,0 @@
-#!/bin/bash
-while read INPUT
-do
-    echo '{"text":"'$INPUT'","from":"0x1d107"}'
-done

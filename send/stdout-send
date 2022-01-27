@@ -1,6 +1,10 @@
 #!/bin/bash
 while read MSG
 do
+    if [[ $disable = "true" ]]; then
+        rm "$MSG"
+        continue
+    fi
     [[ $verbose = "true" ]] && echo [$0] Got path: $MSG
     if [[ $pretty = "true" ]]; then
         jq -j '.from' "$MSG"

@@ -3,22 +3,21 @@ import asyncio,subprocess,os,sys,configparser,re
 
 
 class FileQueue:
-    def __init__(self,root,sender_dict={},filename="%s.message.json",save_history = True):
+    def __init__(self,root,sender_dict={},filename="%s.message.json",save_history = True,filter_proc = None):
         self.root = root
         self.senders = sender_dict
         self.file_name_pattern = re.compile(re.escape(filename) % (r"([0-9]+)"))
         self.file_name = filename
         self.save_history = save_history
         self.idx = 0
+        self.filter = filter_proc
         os.makedirs(root,exist_ok=True)
         for sender in sender_dict:
             os.makedirs(root+'/'+sender,exist_ok=True)
         os.makedirs(root+'/history',exist_ok=True)
-
         message_ids = [int(match[1]) for match in map(self.file_name_pattern.fullmatch,[file for d in os.listdir(root) for file in os.listdir(f"{root}/{d}")]) if match is not None]
         if len(message_ids)>0:
             self.idx = max(message_ids) + 1
-
     async def push_message(self,msg):
         filepath = self.root+'/history/'+self.file_name % (self.idx)
         with open(filepath,'w') as f:
@@ -70,7 +69,7 @@ def mkenv(name,config):
     if name in config.sections():
         env.update(config[name])
     return env
-PATHS = ['recv','send','messages']
+PATHS = ['recv','send','messages','filter']
 async def main():
     config = configparser.ConfigParser()
     config.read('botconfig.ini')
@@ -87,6 +86,7 @@ async def main():
         for sender in sender_names
         ])
     senders_dict = dict(zip(sender_names,senders))
+    controller = None
     dirq = FileQueue('messages', senders_dict,save_history=False)
     await dirq.remind()
     await loop(dirq, receivers)
