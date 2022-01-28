@@ -23,7 +23,7 @@ class FileQueue:
             return msg
         self.filter.stdin.write((msg+'\n').encode('utf-8'))
         await self.filter.stdin.drain()
-        return (await self.filter.stdout.readline()).decode('utf-8')
+        return (await self.filter.stdout.readline()).decode('utf-8').strip()
     async def push_message(self,msg):
         msg = await self.filter_msg(msg)
         if not msg:
@@ -97,7 +97,7 @@ async def main():
     senders_dict = dict(zip(sender_names,senders))
     controller = None
     if os.access('filter/controller', os.F_OK|os.X_OK):
-        controller = await asyncio.create_subprocess_exec('filter/controller',stdin=subprocess.PIPE,stdout=subprocess.PIPE)
+        controller = await asyncio.create_subprocess_exec('filter/controller',stdin=subprocess.PIPE,stdout=subprocess.PIPE,env=mkenv('filter',config))
     dirq = FileQueue('messages', senders_dict,save_history=False,filter_proc=controller)
     await dirq.remind()
     await loop(dirq, receivers)

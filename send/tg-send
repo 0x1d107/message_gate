@@ -8,7 +8,7 @@ async def main():
     while True:
         message_path = input()
         mobj = json.load(open(message_path))
-        if 'protocol' in mobj and mobj['protocol'] == "telegram":
+        if ('protocol' in mobj and mobj['protocol'] == "telegram") ^ ('reply' in mobj and mobj['reply']):
             os.unlink(message_path)
             continue
         message = f"{mobj['from']}> {mobj['text']}"

@@ -13,9 +13,9 @@ do
     else 
         cat $MSG
     fi
-    [[ $verbose = "true" ]] &&echo [$0] Sending slowly...
-    sleep 0.5
+    #[[ $verbose = "true" ]] &&echo [$0] Sending slowly...
+    #sleep 0.5
     [[ $verbose = "true" ]] &&echo [$0] Appending to log
-    cat $MSG >> log.txt
+    #cat $MSG >> log.txt
     rm $MSG
 done

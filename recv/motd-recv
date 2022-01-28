@@ -2,4 +2,4 @@
 if [[ $disable = "true" ]]; then
     exit 0
 fi
-echo '{"text":"Bot activated", "from":"MOTD"}'
+echo '{"text":"Started bridge bot. The bot is currently in very early stage of development. Pls do not break anything. If I am broken message @0x1d107 in VK, @dev_stdout in telegram.", "from":"MOTD"}'

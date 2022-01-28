@@ -1,0 +1,28 @@
+#!/bin/env python 
+import imaplib,email,os,json,sys,time,email.policy
+perr = lambda x:print(f"[imap-recv] {str(x)}",file=sys.stderr)
+out = lambda x:print(json.dumps(x),flush=True)
+def checkmail():
+    perr('Checking email')
+    with imaplib.IMAP4_SSL(os.environ['imap']) as M:
+        status,data = M.login(os.environ['email'], os.environ['password'])
+        if status != 'OK':
+            perr(status)
+            exit(1)
+        M.select(readonly=False)
+        status,data=M.search(None,'UNSEEN')
+        for num in data[0].decode('utf-8').split():
+            status,data=M.fetch(num, '(RFC822)')
+            msg_raw = data[0][1]
+            msg = email.message_from_bytes(msg_raw,policy=email.policy.default)
+            body = msg.get_body(('plain',))
+            if body:
+                body = body.get_content()
+            else:
+                body = '<No plain text body found>'
+            message=f"Subject: {msg['Subject']}\nBody: {body}"
+            out({'text':message,'from':msg['From']+'|email'})
+
+while True:
+    checkmail()
+    time.sleep(120)

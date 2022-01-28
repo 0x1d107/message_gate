@@ -5,7 +5,7 @@ chat=int(os.environ["chat"])
 while True:
     message_path = input()
     mobj = json.load(open(message_path))
-    if 'protocol' in mobj and mobj['protocol'] == "vk":
+    if ('protocol' in mobj and mobj['protocol'] == "vk") ^ ('reply' in mobj and mobj['reply']):
         os.unlink(message_path)
         continue
     message = f"{mobj['from']}> {mobj['text']}"
