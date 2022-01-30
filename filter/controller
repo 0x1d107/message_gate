@@ -1,14 +1,9 @@
 #!/bin/env python
 import json
-while True: 
+
+while True:
     msg = json.loads(input())
-    
-    #   filter code 
-    if 'латекс' in msg['text'].lower():
-        msg['text'] = 'https://www.linux.org.ru/news/opensource/971832/page10#comment-976110'
-        msg['reply'] = True
-        msg['from'] = 'LaTeX@filter'
-    
-    
-    
-    print(json.dumps(msg),flush=True)
+
+    #   filter code
+
+    print(json.dumps(msg), flush=True)

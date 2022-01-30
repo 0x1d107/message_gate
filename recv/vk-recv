@@ -1,28 +1,49 @@
 #!/bin/env python
 from os import environ
-import sys,json
+import sys, json
 from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
-session = VkApi(token=environ['apikey'])
+
+session = VkApi(token=environ["apikey"])
 api = session.get_api()
+perr = lambda x: print(f"[vk-recv] {str(x)}", file=sys.stderr)
+xerr = lambda o: perr(str(dict(o)))
 
 me = api.groups.getById()[0]
-#print("[vk-recv] Testing vk api, my id:",me["id"],file=sys.stderr)
+# print("[vk-recv] Testing vk api, my id:",me["id"],file=sys.stderr)
 longpoll = VkLongPoll(session)
 for event in longpoll.listen():
-    #print("[vk-recv] Got event:",event.type,file=sys.stderr)
+    # print("[vk-recv] Got event:",event.type,file=sys.stderr)
     if event.type == VkEventType.MESSAGE_NEW:
-        if 'chat' in environ and environ['chat'] != str(event.peer_id):
+        if "chat" in environ and environ["chat"] != str(event.peer_id):
             continue
         if not event.to_me:
             continue
-        #print("[vk-recv] Got peer:",event.peer_id,file=sys.stderr)
-        #print("[vk-recv] Got user:",event.user_id,file=sys.stderr)
+        # print("[vk-recv] Got peer:",event.peer_id,file=sys.stderr)
+        # print("[vk-recv] Got user:",event.user_id,file=sys.stderr)
         name = "VK"
-        if event.user_id<0:
-            name=api.groups.getById(group_id=-event.user_id)[0]["name"]+"@group.vk"
+        if event.user_id < 0:
+            name = api.groups.getById(group_id=-event.user_id)[0]["name"] + "@group.vk"
         else:
             user = api.users.get(user_ids=event.user_id)[0]
-            name = user["first_name"] + " "+ user["last_name"]+"@vk"
-        api.messages.markAsRead(start_message_id=event.message_id,peer_id=event.peer_id)
-        print(json.dumps({"text":event.text,"from":name,"protocol":"vk"}),flush=True)
+            name = user["first_name"] + " " + user["last_name"] + "@vk"
+        api.messages.markAsRead(
+            start_message_id=event.message_id, peer_id=event.peer_id
+        )
+        if event.text:
+            print(
+                json.dumps({"text": event.text, "from": name, "protocol": "vk"}),
+                flush=True,
+            )
+        attachments = api.messages.getById(message_ids=event.message_id)["items"][0][
+            "attachments"
+        ]
+        for attachment in attachments:
+            if attachment["type"] == "photo":
+                url = attachment["photo"]["sizes"][-1]["url"]
+                print(
+                    json.dumps(
+                        {"text": url, "image": url, "from": name, "protocol": "vk"}
+                    ),
+                    flush=True,
+                )

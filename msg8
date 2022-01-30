@@ -1,9 +1,16 @@
 #!/bin/env python
-import asyncio,subprocess,os,sys,configparser,re
+import asyncio, subprocess, os, sys, configparser, re
 
 
 class FileQueue:
-    def __init__(self,root,sender_dict={},filename="%s.message.json",save_history = True,filter_proc = None):
+    def __init__(
+        self,
+        root,
+        sender_dict={},
+        filename="%s.message.json",
+        save_history=True,
+        filter_proc=None,
+    ):
         self.root = root
         self.senders = sender_dict
         self.file_name_pattern = re.compile(re.escape(filename) % (r"([0-9]+)"))
@@ -11,97 +18,141 @@ class FileQueue:
         self.save_history = save_history
         self.idx = 0
         self.filter = filter_proc
-        os.makedirs(root,exist_ok=True)
+        os.makedirs(root, exist_ok=True)
         for sender in sender_dict:
-            os.makedirs(root+'/'+sender,exist_ok=True)
-        os.makedirs(root+'/history',exist_ok=True)
-        message_ids = [int(match[1]) for match in map(self.file_name_pattern.fullmatch,[file for d in os.listdir(root) for file in os.listdir(f"{root}/{d}")]) if match is not None]
-        if len(message_ids)>0:
+            os.makedirs(root + "/" + sender, exist_ok=True)
+        os.makedirs(root + "/history", exist_ok=True)
+        message_ids = [
+            int(match[1])
+            for match in map(
+                self.file_name_pattern.fullmatch,
+                [file for d in os.listdir(root) for file in os.listdir(f"{root}/{d}")],
+            )
+            if match is not None
+        ]
+        if len(message_ids) > 0:
             self.idx = max(message_ids) + 1
-    async def filter_msg(self,msg):
+
+    async def filter_msg(self, msg):
         if not self.filter:
             return msg
-        self.filter.stdin.write((msg+'\n').encode('utf-8'))
+        self.filter.stdin.write((msg + "\n").encode("utf-8"))
         await self.filter.stdin.drain()
-        return (await self.filter.stdout.readline()).decode('utf-8').strip()
-    async def push_message(self,msg):
+        return (await self.filter.stdout.readline()).decode("utf-8").strip()
+
+    async def push_message(self, msg):
         msg = await self.filter_msg(msg)
         if not msg:
             return
-        filepath = self.root+'/history/'+self.file_name % (self.idx)
-        with open(filepath,'w') as f:
-            f.write((msg+'\n'))
+        filepath = self.root + "/history/" + self.file_name % (self.idx)
+        with open(filepath, "w") as f:
+            f.write((msg + "\n"))
         for sender in self.senders:
             linkname = f"{self.root}/{sender}/{self.file_name % (self.idx)}"
             os.link(filepath, linkname)
-            self.senders[sender].stdin.write(f"{linkname}\n".encode('utf-8'))
-        self.idx+=1
+            self.senders[sender].stdin.write(f"{linkname}\n".encode("utf-8"))
+        self.idx += 1
         if not self.save_history:
             os.unlink(filepath)
-        await asyncio.gather(*[self.senders[sender].stdin.drain() for sender in self.senders])
+        await asyncio.gather(
+            *[self.senders[sender].stdin.drain() for sender in self.senders]
+        )
+
     async def remind(self):
 
         for sender in self.senders:
-            for message in sorted(os.listdir(f"{self.root}/{sender}"),key=lambda file:int(self.file_name_pattern.match(file)[1])):
+            for message in sorted(
+                os.listdir(f"{self.root}/{sender}"),
+                key=lambda file: int(self.file_name_pattern.match(file)[1]),
+            ):
                 path = f"{self.root}/{sender}/{message}"
-                self.senders[sender].stdin.write((path+'\n').encode('utf-8'))
-        await asyncio.gather(*[self.senders[sender].stdin.drain() for sender in self.senders])
-    
+                self.senders[sender].stdin.write((path + "\n").encode("utf-8"))
+        await asyncio.gather(
+            *[self.senders[sender].stdin.drain() for sender in self.senders]
+        )
 
-async def send_message(senders,message):
+
+async def send_message(senders, message):
     for sender in senders:
-        sender.stdin.write((message.lstrip()+'\n').encode('utf-8'))
+        sender.stdin.write((message.lstrip() + "\n").encode("utf-8"))
     await asyncio.gather(*[sender.stdin.drain() for sender in senders])
+
+
 async def getline(process):
-    return (process,(await process.stdout.readline()).decode('utf-8').rstrip())
-async def loop(dirq,receivers):
+    return (process, (await process.stdout.readline()).decode("utf-8").rstrip())
+
+
+async def loop(dirq, receivers):
     coro = {asyncio.create_task(getline(process)) for process in receivers}
     sender_tasks = set()
     while coro:
-        finished,coro = await asyncio.wait(coro,return_when=asyncio.FIRST_COMPLETED)
+        finished, coro = await asyncio.wait(coro, return_when=asyncio.FIRST_COMPLETED)
 
         for f in finished:
-            proc,line = await f
-            #print("Got line",line)
+            proc, line = await f
+            # print("Got line",line)
             if line:
-                #print("Should probably send it!")
+                # print("Should probably send it!")
                 sender_tasks.add(asyncio.create_task(dirq.push_message(line)))
             if proc.returncode is None:
                 coro.add(asyncio.create_task(getline(proc)))
             else:
-                print(f"Receiver {proc.pid} finished with return code {proc.returncode}")
+                print(
+                    f"Receiver {proc.pid} finished with return code {proc.returncode}"
+                )
     await asyncio.gather(*sender_tasks)
-def mkenv(name,config):
+
+
+def mkenv(name, config):
     env = os.environ.copy()
-    if 'DEFAULT' in config.sections():
-        env.update(config['DEFAULT'])
+    if "DEFAULT" in config.sections():
+        env.update(config["DEFAULT"])
     if name in config.sections():
         env.update(config[name])
     return env
-PATHS = ['recv','send','messages','filter']
+
+
+PATHS = ["recv", "send", "messages", "filter"]
+
+
 async def main():
     config = configparser.ConfigParser()
-    config.read('botconfig.ini')
+    config.read("botconfig.ini")
     for path in PATHS:
-        os.makedirs(path,0o744,True)
-    
-    receivers = await asyncio.gather(*[
-        asyncio.create_subprocess_exec('recv/'+receiver,stdout=subprocess.PIPE,env=mkenv(receiver, config)) 
-        for receiver in os.listdir('recv/')
-        ])
-    sender_names = os.listdir('send/')
-    senders = await  asyncio.gather(*[
-        asyncio.create_subprocess_exec('send/'+sender,stdin=subprocess.PIPE,env=mkenv(sender, config)) 
-        for sender in sender_names
-        ])
-    senders_dict = dict(zip(sender_names,senders))
+        os.makedirs(path, 0o744, True)
+
+    receivers = await asyncio.gather(
+        *[
+            asyncio.create_subprocess_exec(
+                "recv/" + receiver, stdout=subprocess.PIPE, env=mkenv(receiver, config)
+            )
+            for receiver in os.listdir("recv/")
+        ]
+    )
+    sender_names = os.listdir("send/")
+    senders = await asyncio.gather(
+        *[
+            asyncio.create_subprocess_exec(
+                "send/" + sender, stdin=subprocess.PIPE, env=mkenv(sender, config)
+            )
+            for sender in sender_names
+        ]
+    )
+    senders_dict = dict(zip(sender_names, senders))
     controller = None
-    if os.access('filter/controller', os.F_OK|os.X_OK):
-        controller = await asyncio.create_subprocess_exec('filter/controller',stdin=subprocess.PIPE,stdout=subprocess.PIPE,env=mkenv('filter',config))
-    dirq = FileQueue('messages', senders_dict,save_history=False,filter_proc=controller)
+    if os.access("filter/controller", os.F_OK | os.X_OK):
+        controller = await asyncio.create_subprocess_exec(
+            "filter/controller",
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            env=mkenv("filter", config),
+        )
+    dirq = FileQueue(
+        "messages", senders_dict, save_history=False, filter_proc=controller
+    )
     await dirq.remind()
     await loop(dirq, receivers)
 
-    
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     asyncio.run(main())

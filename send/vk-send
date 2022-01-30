@@ -1,14 +1,32 @@
 #!/bin/env python
-import vk_api,os,json,random,time
-api = vk_api.VkApi(token=os.environ['apikey']).get_api()
-chat=int(os.environ["chat"])
+import vk_api, os, json, random, time, requests
+
+session = requests.Session()
+vksession = vk_api.VkApi(token=os.environ["apikey"])
+api = vksession.get_api()
+chat = int(os.environ["chat"])
+upload = vk_api.VkUpload(vksession)
 while True:
     message_path = input()
     mobj = json.load(open(message_path))
-    if ('protocol' in mobj and mobj['protocol'] == "vk") ^ ('reply' in mobj and mobj['reply']):
+    if ("protocol" in mobj and mobj["protocol"] == "vk") ^ (
+        "reply" in mobj and mobj["reply"]
+    ):
         os.unlink(message_path)
         continue
     message = f"{mobj['from']}> {mobj['text']}"
-    api.messages.send(peer_id=chat,message=message,random_id=random.randrange(2**32-1))
+    attachments = []
+    if "image" in mobj:
+        message = f"{mobj['from']}> "
+        image = session.get(mobj["image"], stream=True)
+        photo = upload.photo_messages(image.raw)[0]
+        attachments.append(f"photo{photo['owner_id']}_{photo['id']}")
+
+    api.messages.send(
+        peer_id=chat,
+        message=message,
+        random_id=random.randrange(2**32 - 1),
+        attachment=",".join(attachments),
+    )
     time.sleep(1)
     os.unlink(message_path)

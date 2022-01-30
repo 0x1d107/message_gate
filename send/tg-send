@@ -1,19 +1,28 @@
 #!/bin/env python
-import aiogram,os,json,asyncio
+import aiogram, os, json, asyncio
 
 
 async def main():
-    bot = aiogram.Bot(os.environ['apikey'])
-    chat = os.environ['chat']
+    bot = aiogram.Bot(os.environ["apikey"])
+    chat = os.environ["chat"]
     while True:
         message_path = input()
         mobj = json.load(open(message_path))
-        if ('protocol' in mobj and mobj['protocol'] == "telegram") ^ ('reply' in mobj and mobj['reply']):
+        if ("protocol" in mobj and mobj["protocol"] == "telegram") ^ (
+            "reply" in mobj and mobj["reply"]
+        ):
             os.unlink(message_path)
             continue
-        message = f"{mobj['from']}> {mobj['text']}"
-        await bot.send_message(chat, message)
+        if "image" in mobj:
+            await bot.send_message(chat, f"{mobj['from']}>")
+            await bot.send_photo(chat, mobj["image"])
+            await asyncio.sleep(3)
+        else:
+            message = f"{mobj['from']}> {mobj['text']}"
+            await bot.send_message(chat, message)
         await asyncio.sleep(3)
         os.unlink(message_path)
-if __name__=='__main__':
+
+
+if __name__ == "__main__":
     asyncio.run(main())

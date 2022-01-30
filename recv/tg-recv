@@ -1,15 +1,38 @@
 #!/bin/env python
-import aiogram,os,json,logging
-bot = aiogram.Bot(os.environ['apikey'])
+import aiogram, os, json, logging
+
+bot = aiogram.Bot(os.environ["apikey"])
 dp = aiogram.Dispatcher(bot)
-@dp.message_handler()
+
+
+@dp.message_handler(content_types=["text", "photo"])
 async def echo(message):
     user = message.from_user
-    name = user.first_name + " " + user.last_name+"@telegram"
-    if 'chat' in os.environ and str(message.chat.id) != os.environ['chat']:
+    name = user.first_name + " " + user.last_name + "@telegram"
+    if "chat" in os.environ and str(message.chat.id) != os.environ["chat"]:
         return
-    #await bot.send_message(message.chat.id, "OK")
-    print(json.dumps({"text":message.text,"from":name,"protocol":"telegram"}),flush=True)
+    # await bot.send_message(message.chat.id, "OK")
+    if message.text:
+        print(
+            json.dumps({"text": message.text, "from": name, "protocol": "telegram"}),
+            flush=True,
+        )
+    if message.photo:
+        file_id = message.photo[-1].file_id
+        file = await bot.get_file(file_id)
+        url = bot.get_file_url(file.file_path)
+        print(
+            json.dumps(
+                {
+                    "text": "[sorry url leaks bot token :( ]",
+                    "image": url,
+                    "from": name,
+                    "protocol": "telegram",
+                }
+            ),
+            flush=True,
+        )
 
-if __name__ == '__main__':
-    aiogram.executor.start_polling(dp,skip_updates=True)
+
+if __name__ == "__main__":
+    aiogram.executor.start_polling(dp, skip_updates=True)
