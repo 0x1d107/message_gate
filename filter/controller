@@ -1,9 +1,2 @@
-#!/bin/env python
-import json
-
-while True:
-    msg = json.loads(input())
-
-    #   filter code
-
-    print(json.dumps(msg), flush=True)
+#!/bin/bash
+cat

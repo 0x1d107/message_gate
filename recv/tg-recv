@@ -1,15 +1,27 @@
 #!/bin/env python
-import aiogram, os, json, logging
+import aiogram, os, json, logging, sys
 
+perr = lambda x: print(f"[tg-recv] {str(x)}", file=sys.stderr)
 bot = aiogram.Bot(os.environ["apikey"])
 dp = aiogram.Dispatcher(bot)
 
 
+@dp.message_handler(commands=["chatid"])
+async def get_chat_id(message):
+    await message.reply(message.chat.id)
+
+
+@dp.channel_post_handler(content_types=["text", "photo"])
 @dp.message_handler(content_types=["text", "photo"])
 async def echo(message):
     user = message.from_user
-    name = user.first_name + " " + user.last_name + "@telegram"
+    if user:
+
+        name = user.first_name + " " + user.last_name + "@telegram"
+    else:
+        name = message.chat.title + "@" + message.chat.type + ".telegram"
     if "chat" in os.environ and str(message.chat.id) != os.environ["chat"]:
+        perr(f"Chat id = {message.chat.id}")
         return
     # await bot.send_message(message.chat.id, "OK")
     if message.text:
@@ -24,7 +36,7 @@ async def echo(message):
         print(
             json.dumps(
                 {
-                    "text": "[sorry url leaks bot token :( ]",
+                    "text": "[sorry the url leaks bot token :( ]",
                     "image": url,
                     "from": name,
                     "protocol": "telegram",
