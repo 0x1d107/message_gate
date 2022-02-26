@@ -1,2 +1,4 @@
-#!/bin/bash
-cat
+#!/bin/env python
+import msg_filter
+import latex
+msg_filter.filter_messages()

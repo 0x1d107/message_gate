@@ -2,6 +2,8 @@
 import asyncio, subprocess, os, sys, configparser, re
 
 
+async def getline(process):
+    return (process, (await process.stdout.readline()).decode("utf-8").strip())
 class FileQueue:
     def __init__(
         self,
@@ -34,16 +36,13 @@ class FileQueue:
             self.idx = max(message_ids) + 1
 
     async def filter_msg(self, msg):
-        if not self.filter:
-            return msg
+        if self.filter is None or self.filter.returncode is not None:
+            await self.push_message(msg)
+            return
         self.filter.stdin.write((msg + "\n").encode("utf-8"))
         await self.filter.stdin.drain()
-        return (await self.filter.stdout.readline()).decode("utf-8").strip()
 
     async def push_message(self, msg):
-        msg = await self.filter_msg(msg)
-        if not msg:
-            return
         filepath = self.root + "/history/" + self.file_name % (self.idx)
         with open(filepath, "w") as f:
             f.write((msg + "\n"))
@@ -70,16 +69,13 @@ class FileQueue:
         await asyncio.gather(
             *[self.senders[sender].stdin.drain() for sender in self.senders]
         )
+    async def filter_loop(self):
+        while self.filter is not None and self.filter.returncode is None:
+            _,line = await getline(self.filter)
+            if line:
+                await self.push_message(line)
+        self.filter = None
 
-
-async def send_message(senders, message):
-    for sender in senders:
-        sender.stdin.write((message.lstrip() + "\n").encode("utf-8"))
-    await asyncio.gather(*[sender.stdin.drain() for sender in senders])
-
-
-async def getline(process):
-    return (process, (await process.stdout.readline()).decode("utf-8").rstrip())
 
 
 async def loop(dirq, receivers):
@@ -93,7 +89,7 @@ async def loop(dirq, receivers):
             # print("Got line",line)
             if line:
                 # print("Should probably send it!")
-                sender_tasks.add(asyncio.create_task(dirq.push_message(line)))
+                sender_tasks.add(asyncio.create_task(dirq.filter_msg(line)))
             if proc.returncode is None:
                 coro.add(asyncio.create_task(getline(proc)))
             else:
@@ -151,7 +147,7 @@ async def main():
         "messages", senders_dict, save_history=False, filter_proc=controller
     )
     await dirq.remind()
-    await loop(dirq, receivers)
+    await asyncio.gather(loop(dirq, receivers),dirq.filter_loop())
 
 
 if __name__ == "__main__":

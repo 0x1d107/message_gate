@@ -9,34 +9,35 @@ api = session.get_api()
 perr = lambda x: print(f"[vk-recv] {str(x)}", file=sys.stderr)
 xerr = lambda o: perr(str(dict(o)))
 me = api.groups.getById()[0]
-def handle_message(msg,name = None):
+
+
+def handle_message(msg, name=None):
     perr("handling message")
     xerr(msg)
     if name is None:
         name = "VK"
-        if msg['from_id'] < 0:
-            name = api.groups.getById(group_id=-msg['from_id'])[0]["name"] + "@group.vk"
+        if msg["from_id"] < 0:
+            name = api.groups.getById(group_id=-msg["from_id"])[0]["name"] + "@group.vk"
         else:
-            user = api.users.get(user_ids=msg['from_id'])[0]
+            user = api.users.get(user_ids=msg["from_id"])[0]
             name = user["first_name"] + " " + user["last_name"] + "@vk"
-    if msg['text']:
+    if msg["text"]:
         print(
-            json.dumps({"text": msg['text'], "from": name, "protocol": "vk"}),
+            json.dumps({"text": msg["text"], "from": name, "protocol": "vk"}),
             flush=True,
         )
-    for attachment in msg['attachments']:
+    for attachment in msg["attachments"]:
         perr(attachment)
         if attachment["type"] == "photo":
             url = attachment["photo"]["sizes"][-1]["url"]
             print(
-                json.dumps(
-                    {"text": url, "image": url, "from": name, "protocol": "vk"}
-                ),
+                json.dumps({"text": url, "image": url, "from": name, "protocol": "vk"}),
                 flush=True,
             )
-    if 'fwd_messages' in msg:
-        for fwd in msg['fwd_messages']:
-            handle_message(fwd,name)
+    if "fwd_messages" in msg:
+        for fwd in msg["fwd_messages"]:
+            handle_message(fwd, name)
+
 
 # print("[vk-recv] Testing vk api, my id:",me["id"],file=sys.stderr)
 longpoll = VkLongPoll(session)

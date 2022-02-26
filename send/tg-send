@@ -18,7 +18,9 @@ async def main():
             try:
                 await bot.send_photo(chat, mobj["image"])
             except aiogram.utils.exceptions.WrongFileIdentifier as e:
-                await bot.send_message(chat, f"got {str(e)} while sending: {mobj['text']}")
+                await bot.send_message(
+                    chat, f"got {str(e)} while sending: {mobj['text']}"
+                )
             await asyncio.sleep(3)
         else:
             message = f"{mobj['from']}> {mobj['text']}"
